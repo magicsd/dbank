@@ -1,6 +1,14 @@
 const Token = artifacts.require('Token')
-// const dBank = artifacts.require('dBank')
+const dBank = artifacts.require('dBank')
 
 module.exports = async deployer => {
   await deployer.deploy(Token)
+
+  const token = await Token.deployed()
+
+  await deployer.deploy(dBank, token.address)
+
+  const dbank = dBank.deployed()
+
+  await token.passMinterRole(dbank.address)
 }
