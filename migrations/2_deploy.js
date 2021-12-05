@@ -8,7 +8,7 @@ module.exports = async deployer => {
 
   await deployer.deploy(dBank, token.address)
 
-  const dbank = dBank.deployed()
+  const dbank = await dBank.deployed()
 
   await token.passMinterRole(dbank.address)
 }
