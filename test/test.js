@@ -43,4 +43,33 @@ contract('dBank', ([deployer, user]) => {
       })
     })
   })
+
+  describe('testing deposit...', () => {
+    let balance
+    const depositValue = 10 ** 16 // 0.01 ETH
+
+    describe('success', () => {
+      beforeEach(async () => {
+        await dbank.deposit({ value: depositValue, from: user })
+      })
+
+      it('balance should increase', async () => {
+        expect(Number(await dbank.etherBalanceOf(user))).to.eq(depositValue)
+      })
+
+      it('deposit time should be > 0', async () => {
+        expect(Number(await dbank.depositStart(user))).to.be.above(0)
+      })
+
+      it('balance status should eq true', async () => {
+        expect(await dbank.isDeposited(user)).to.eq(true)
+      })
+    })
+
+    describe('failure', () => {
+      it('depositing should be rejected', async () => {
+        await dbank.deposit({ value: depositValue, from: user }).should.be.rejectedWith(EVM_REVERT)
+      })
+    })
+  })
 })
