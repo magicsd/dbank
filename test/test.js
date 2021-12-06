@@ -1,12 +1,16 @@
+import { EVM_REVERT, wait } from './helpers'
+
 const Token = artifacts.require('Token')
 const dBank = artifacts.require('dBank')
 
-const EVM_REVERT = 'VM Exception while processing transaction: revert'
-
 require('chai').use(require('chai-as-promised')).should()
+
+const depositValue = 10 ** 16 // 0.01 ETH
 
 contract('dBank', ([deployer, user]) => {
   let dbank, token
+  // const interestPerSecond = 31668017 //(10% APY) for min. deposit (0.01 ETH)
+  const interestPerSecond = depositValue * 0.1 / 12 / 30 / 24 / 60 / 60
 
   beforeEach(async () => {
     token = await Token.new()
@@ -46,7 +50,6 @@ contract('dBank', ([deployer, user]) => {
 
   describe('testing deposit...', () => {
     let balance
-    const depositValue = 10 ** 16 // 0.01 ETH
 
     describe('success', () => {
       beforeEach(async () => {
@@ -68,12 +71,55 @@ contract('dBank', ([deployer, user]) => {
 
     describe('failure', () => {
       it('depositing should be rejected', async () => {
-        await dbank.deposit({ value: 10**15, from: user }).should.be.rejectedWith(EVM_REVERT)
+        await dbank.deposit({ value: 10 ** 15, from: user }).should.be.rejectedWith(EVM_REVERT)
       })
 
       it('depositing twice should be rejected', async () => {
         await dbank.deposit({ value: depositValue, from: user })
         await dbank.deposit({ value: depositValue, from: user }).should.be.rejectedWith(EVM_REVERT)
+      })
+    })
+  })
+
+  describe('testing withdraw...', () => {
+    let balance
+
+    describe('success', () => {
+      beforeEach(async () => {
+        await dbank.deposit({ value: depositValue, from: user })
+        await wait(2)
+        balance = await web3.eth.getBalance(user)
+        await dbank.withdraw({ from: user })
+      })
+
+      it('balance should decrease', async () => {
+        expect(Number(await web3.eth.getBalance(dbank.address))).to.eq(0)
+        expect(Number(await dbank.etherBalanceOf(user))).to.eq(0)
+      })
+
+      it('user should receive ether back', async () => {
+        expect(Number(await web3.eth.getBalance(user))).to.be.above(Number(balance))
+      })
+
+      it('user should receive proper amount of interest', async () => {
+        balance = Number(await token.balanceOf(user))
+        expect(balance).to.be.above(0)
+        expect(balance % interestPerSecond).to.eq(0)
+        expect(balance).to.be.below(interestPerSecond * 4)
+      })
+
+      it('depositer data should be reset', async () => {
+        expect(Number(await dbank.depositStart(user))).to.eq(0)
+        expect(Number(await dbank.etherBalanceOf(user))).to.eq(0)
+        expect(await dbank.isDeposited(user)).to.eq(false)
+      })
+    })
+
+    describe('failure', () => {
+      it('withdrawing should be rejected', async () => {
+        await dbank.deposit({ value: depositValue, from: user })
+        await wait(2)
+        await dbank.widthdraw({ from: deployer }).should.be.rejectedWith(EVM_REVERT)
       })
     })
   })
