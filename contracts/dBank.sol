@@ -10,6 +10,7 @@ contract dBank {
     mapping (address => bool) public isDeposited;
 
     event Deposit(address indexed user, uint etherAmount, uint timeStart);
+    event Withdraw(address indexed user, uint etherAmount, uint depositTime, uint interest);
 
     constructor(Token _token) public {
         token = _token;
@@ -24,5 +25,23 @@ contract dBank {
         isDeposited[msg.sender] = true;
 
         emit Deposit(msg.sender, msg.value, block.timestamp);
+    }
+
+    function withdraw() public {
+        require(isDeposited[msg.sender] == true, 'Error, no previous deposit');
+        uint userBalance = etherBalanceOf[msg.sender]; // for event
+
+        uint depositTime = block.timestamp - depositStart[msg.sender];
+        uint interestPerSecond = 31668017 * (userBalance / 1e16);
+        uint interest = interestPerSecond * depositTime;
+
+        payable(msg.sender).transfer(userBalance);
+        token.mint(msg.sender, interest);
+
+        depositStart[msg.sender] = 0;
+        etherBalanceOf[msg.sender] = 0;
+        isDeposited[msg.sender] = false;
+
+        emit Withdraw(msg.sender, userBalance, depositTime, interest);
     }
 }

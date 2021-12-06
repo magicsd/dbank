@@ -5,12 +5,13 @@ const dBank = artifacts.require('dBank')
 
 require('chai').use(require('chai-as-promised')).should()
 
-const depositValue = 10 ** 16 // 0.01 ETH
+const minDepositValue = 10 ** 16 // 0.01 ETH
 
 contract('dBank', ([deployer, user]) => {
   let dbank, token
   // const interestPerSecond = 31668017 //(10% APY) for min. deposit (0.01 ETH)
-  const interestPerSecond = depositValue * 0.1 / 12 / 30 / 24 / 60 / 60
+  // const interestPerSecond = Math.floor(minDepositValue * 0.1 / 365.25 / 24 / 60 / 60)
+  const interestPerSecond = 31668017
 
   beforeEach(async () => {
     token = await Token.new()
@@ -53,11 +54,11 @@ contract('dBank', ([deployer, user]) => {
 
     describe('success', () => {
       beforeEach(async () => {
-        await dbank.deposit({ value: depositValue, from: user })
+        await dbank.deposit({ value: minDepositValue, from: user })
       })
 
       it('balance should increase', async () => {
-        expect(Number(await dbank.etherBalanceOf(user))).to.eq(depositValue)
+        expect(Number(await dbank.etherBalanceOf(user))).to.eq(minDepositValue)
       })
 
       it('deposit time should be > 0', async () => {
@@ -75,8 +76,9 @@ contract('dBank', ([deployer, user]) => {
       })
 
       it('depositing twice should be rejected', async () => {
-        await dbank.deposit({ value: depositValue, from: user })
-        await dbank.deposit({ value: depositValue, from: user }).should.be.rejectedWith(EVM_REVERT)
+        await dbank.deposit({ value: minDepositValue, from: user })
+        await dbank.deposit({ value: minDepositValue, from: user }).should.be.rejectedWith(
+          EVM_REVERT)
       })
     })
   })
@@ -86,7 +88,7 @@ contract('dBank', ([deployer, user]) => {
 
     describe('success', () => {
       beforeEach(async () => {
-        await dbank.deposit({ value: depositValue, from: user })
+        await dbank.deposit({ value: minDepositValue, from: user })
         await wait(2)
         balance = await web3.eth.getBalance(user)
         await dbank.withdraw({ from: user })
@@ -117,9 +119,9 @@ contract('dBank', ([deployer, user]) => {
 
     describe('failure', () => {
       it('withdrawing should be rejected', async () => {
-        await dbank.deposit({ value: depositValue, from: user })
+        await dbank.deposit({ value: minDepositValue, from: user })
         await wait(2)
-        await dbank.widthdraw({ from: deployer }).should.be.rejectedWith(EVM_REVERT)
+        await dbank.withdraw({ from: deployer }).should.be.rejectedWith(EVM_REVERT)
       })
     })
   })
